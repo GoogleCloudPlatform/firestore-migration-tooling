@@ -30,11 +30,11 @@ For simplicity, you can run the following steps in Google Cloud Shell.
 1.  The following output appears:
 
     ```code=shell
-    aws configure  
-        AWS Access Key ID [None]: **PASTE_YOUR_ACCESS_KEY_ID**  
-        AWS Secret Access Key [None]: **PASTE_YOUR_SECRET_ACCESS_KEY**  
-        Default region name [None]: us-east-1  
-        Default output format [None]:
+    $aws configure  
+    AWS Access Key ID [None]: **PASTE_YOUR_ACCESS_KEY_ID**  
+    AWS Secret Access Key [None]: **PASTE_YOUR_SECRET_ACCESS_KEY**  
+    Default region name [None]: us-east-1  
+    Default output format [None]:
     ```
 
 1.  Enter the **ACCESS KEY ID** and **SECRET ACCESS KEY** from the AWS IAM account that you created.
@@ -44,7 +44,9 @@ For simplicity, you can run the following steps in Google Cloud Shell.
 ### Creating an AWS IAM role for AWS Lambda
 
 ```code=shell
-aws iam create-role --role-name AWSLambdaDynamoDBExecutionRole --assume-role-policy-document '{"Version": "2012-10-17","Statement": [{ "Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}]}'
+aws iam create-role --role-name AWSLambdaDynamoDBExecutionRole \
+--assume-role-policy-document \
+'{"Version": "2012-10-17","Statement": [{ "Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}]}'
 ```
 
 ```code=shell
@@ -84,7 +86,8 @@ You need to build a container image for the Lambda function since certain native
 
 1. Login to AWS ECR.
     ```code=shell
-    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+    aws ecr get-login-password --region $AWS_REGION | \
+    docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
     ```
 
 1. Tag the image.
@@ -138,7 +141,8 @@ aws lambda create-function --region $AWS_REGION --function-name sync-dbs\
 If streaming is not enabled for the DynamoDB table, you need to enable it.
 
 ```code=shell
-aws dynamodb update-table --table-name $DYNAMODB_TABLE --stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
+aws dynamodb update-table --table-name $DYNAMODB_TABLE \
+--stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
 ```
 
 ### Configuring the DynamoDB stream as the event source for the Lambda function:
@@ -146,7 +150,8 @@ aws dynamodb update-table --table-name $DYNAMODB_TABLE --stream-specification St
 ```code=shell
 aws lambda create-event-source-mapping --function-name sync-dbs \
 --batch-size 500 --starting-position LATEST \
---event-source-arn $(aws dynamodbstreams list-streams --table-name $DYNAMODB_TABLE --query 'Streams[0].StreamArn' --output text)
+--event-source-arn $(aws dynamodbstreams list-streams \
+--table-name $DYNAMODB_TABLE --query 'Streams[0].StreamArn' --output text)
 ```
 
 ## Testing and verifying
