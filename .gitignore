@@ -1,0 +1,9 @@
+.venv
+venv
+.gitignore
+.DS_Store
+.pyc
+*.swp
+*~
+.vscode/
+.vs/
