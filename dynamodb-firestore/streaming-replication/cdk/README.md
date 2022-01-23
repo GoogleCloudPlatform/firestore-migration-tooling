@@ -1,6 +1,14 @@
 
 # Using AWS CDK to configure and deploy the Lambda function
 
+In this doc, we use [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/home.html) to deploy and manage the AWS resources.
+
+1. If you haven't installed the [AWS CDK Toolkit](https://docs.aws.amazon.com/cdk/v2/guide/cli.html), use the following command to install it:
+
+    ```bash
+    sudo npm install -g aws-cdk
+    ```
+    
 1. Set up the variables.
 
     ```bash
@@ -75,5 +83,3 @@ step to activate your virtualenv.
     ```bash
     cdk deploy
     ```
-
-Read the [CDK guide](https://docs.aws.amazon.com/cdk/v2/guide/home.html) for more details.

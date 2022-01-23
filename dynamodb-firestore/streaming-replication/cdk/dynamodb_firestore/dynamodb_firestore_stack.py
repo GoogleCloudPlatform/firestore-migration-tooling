@@ -68,15 +68,12 @@ class DynamodbFirestoreStack(Stack):
                               retry_attempts=10
                               ))
 
+        # Grant permissions to the Lambda function using the managed policies
+        # You can customize policies if you prefer
         sync_lambda.role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name(
             "SecretsManagerReadWrite"))
         sync_lambda.role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name(
             "AmazonDynamoDBReadOnlyAccess"))
         sync_lambda.role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name(
             "AWSLambdaInvocation-DynamoDB"))
-        # secret = aws_secretsmanager.Secret.from_secret_attributes(
-        #     self,
-        #     "gcp_sa_secret",
-        #     secret_partial_arn=aws_secret_arn
-        # )
-        # secret.grant_read(sync_lambda.role)
+

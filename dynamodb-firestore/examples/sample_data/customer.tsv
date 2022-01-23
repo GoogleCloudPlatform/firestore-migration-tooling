@@ -1,0 +1,14 @@
+pk	sk	customer_id	customer_fname	customer_lname	customer_email	customer_addresses
+CUST#1234567890	EMAIL#johndoe@email.com	1234567890	John	Doe	johndoe@email.com	{Shipping: 123 Main St, Boulder, CO, 80001}, {Billing: 123 Main St, Boulder, CO 80001}
+CUST#1111111111	EMAIL#johns@email.com	1111111111	John	Smith	johns@email.com	{Shipping: 222 Main St, Boulder, CO, 80001}, {Billing: 222 Main St, Boulder, CO 80001}
+CUST#2222222222	EMAIL#alices@email.com	2222222222	Alice	Smith	alices@email.com	{Shipping: 222 Main St, Boulder, CO, 80001}, Billing: 222 Main St, Boulder, CO 80001
+CUST#3333333333	EMAIL#bob.smith@email.com	3333333333	Bob	Smith	bob.smith@email.com	{Shipping: 222 Main St, Boulder, CO, 80001}, {Billing: 222 Main St, Boulder, CO 80001}
+CUST#4444444444	EMAIL#carol.roberts@email.com	4444444444	Carol	Roberts	carol.roberts@email.com	{Shipping: 444 Main St, Boulder, CO, 80001}, {Billing: 444 Main St, Boulder, CO 80001}
+CUST#5555555555	EMAIL#robert@email.com	5555555555	Robert	Roberts	robert@email.com	{Shipping: 444 Main St, Boulder, CO, 80001}, {Billing: 555 Main St, Boulder, CO 80001}
+CUST#6666666666	EMAIL#august@email.com	6666666666	August	Johnson	august@email.com	{Shipping: 666 Main St, Boulder, CO, 80001}, {Billing: 666 Main St, Boulder, CO 80001}
+CUST#7777777777	EMAIL#parker@email.com	7777777777	Parker	Johnson	parker@email.com	{Shipping: 666 Main St, Boulder, CO, 80001}, {Billing: 666 Main St, Boulder, CO 80001}
+CUST#8888888888	EMAIL#bart@email.com	8888888888	Bart	Simpson	bart@email.com	{Shipping: 742 Evergreen Terrace, Springfield, OR, 97403}, {Billing: 742 Evergreen Terrace, Springfield, OR, 97403}
+CUST#9999999999	EMAIL#lisa@email.com	9999999999	Lisa	Simpson	lisa@email.com	{Shipping: 742 Evergreen Terrace, Springfield, OR, 97403}, {Billing: 742 Evergreen Terrace, Springfield, OR, 97403}
+CUST#0000000000	EMAIL#homer@email.com	0000000000	Homer	Simpson	homer@email.com	{Shipping: 742 Evergreen Terrace, Springfield, OR, 97403}, {Billing: 742 Evergreen Terrace, Springfield, OR, 97403}
+CUST#0101010101	EMAIL#marg@email.com	101010101	Marg	Simpson	marg@email.com	{Shipping: 742 Evergreen Terrace, Springfield, OR, 97403}, {Billing: 742 Evergreen Terrace, Springfield, OR, 97403}
+CUST#0202020202	EMAIL#maggie@email.com	101010101	Maggie	Simpson	maggie@email.com	{Shipping: 742 Evergreen Terrace, Springfield, OR, 97403}, {Billing: 742 Evergreen Terrace, Springfield, OR, 97403}
