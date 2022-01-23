@@ -9,6 +9,7 @@
     export DYNAMODB_TABLE=[Your DynamoDB table name]
     export GCP_PROJECT_ID=[Your GCP Project ID]
     export APP_NAME=ddb-firestore-sync-app
+    export AWS_SECRET_NAME=ddb2firestore/gcp-sa-key
     ```
 
 1. Create a service account on GCP and download the key file.
@@ -29,14 +30,14 @@
 1. Create a secret in AWS secrets manager for the GCP service account key file:
 
     ```bash
-    aws secretsmanager create-secret --name ddb2firestore/sa-key \
+    aws secretsmanager create-secret --name $AWS_SECRET_NAME \
     --description "Access GCP firestore" --secret-string $(base64 gcp-key.json)
     ```
 
 1. Get the secret ARN.
 
     ```bash
-    SECRET_ARN=$(aws secretsmanager describe-secret --secret-id ddb2firestore/sa-key1 --query 'ARN')
+    export SECRET_ARN=$(aws secretsmanager describe-secret --secret-id $AWS_SECRET_NAME --query 'ARN' | tr -d '"')
     ```
 1. Create a virtualenv:
 

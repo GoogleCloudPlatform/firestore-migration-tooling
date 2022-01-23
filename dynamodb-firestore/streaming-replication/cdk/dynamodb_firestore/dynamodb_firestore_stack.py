@@ -14,6 +14,8 @@ from aws_cdk import (
     aws_dynamodb,
     aws_sqs,
     aws_secretsmanager,
+    aws_iam,
+    Duration,
     Stack,
 )
 from constructs import Construct
@@ -31,7 +33,7 @@ class DynamodbFirestoreStack(Stack):
         # Get the table name from the environment variable
         ddb_table_name = os.environ["DYNAMODB_TABLE"]
         # Get the secret ARN for the GCP service account
-        secret_arn = os.environ["SECRET_ARN"]
+        aws_secret_arn = os.environ["SECRET_ARN"]
 
         # Use boto3 to get the table stream
         dynamodb = boto3.resource('dynamodb')
@@ -49,8 +51,11 @@ class DynamodbFirestoreStack(Stack):
         sync_lambda = aws_lambda.DockerImageFunction(
             self, "db-sync-function",
             function_name="ddb-firestore-sync-func",
+            memory_size=1024,
+            timeout=Duration.seconds(300),
             code=aws_lambda.DockerImageCode.from_image_asset("../lambda-func"))
         sync_lambda.add_environment("DYNAMODB_TABLE_NAME", ddb_table_name)
+        sync_lambda.add_environment("AWS_SECRET_ARN", aws_secret_arn)
 
         dead_letter_queue = aws_sqs.Queue(self, "deadLetterQueue")
         sync_lambda.add_event_source(
@@ -63,9 +68,15 @@ class DynamodbFirestoreStack(Stack):
                               retry_attempts=10
                               ))
 
-        secret = aws_secretsmanager.Secret.from_secret_attributes(
-            self,
-            "ImportedSecret",
-            secret_arn=secret_arn
-        )
-        secret.grant_read(sync_lambda.role)
+        sync_lambda.role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+            "SecretsManagerReadWrite"))
+        sync_lambda.role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+            "AmazonDynamoDBReadOnlyAccess"))
+        sync_lambda.role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+            "AWSLambdaInvocation-DynamoDB"))
+        # secret = aws_secretsmanager.Secret.from_secret_attributes(
+        #     self,
+        #     "gcp_sa_secret",
+        #     secret_partial_arn=aws_secret_arn
+        # )
+        # secret.grant_read(sync_lambda.role)

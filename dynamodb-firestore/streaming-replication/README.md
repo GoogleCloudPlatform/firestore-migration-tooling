@@ -73,6 +73,7 @@ You need to build a container image for the Lambda function since certain native
     export DYNAMODB_TABLE=[Your DynamoDB table name]
     export GCP_PROJECT_ID=[Your GCP Project ID]
     export APP_NAME=ddb-firestore-sync-app
+    export AWS_SECRET_NAME=ddb2firestore/gcp-sa-key
     ```
 1. Change to the Lambda source directory.
     ```bash
@@ -118,7 +119,7 @@ You need to build a container image for the Lambda function since certain native
 
 1. Create a secret in AWS secrets manager for the GCP service account key file:
     ```bash
-    aws secretsmanager create-secret --name ddb2firestore/sa-key \
+    aws secretsmanager create-secret --name $AWS_SECRET_NAME \
     --description "Access GCP firestore" --secret-string $(base64 gcp-key.json)
     ```
 
@@ -169,7 +170,7 @@ Finally, you can go to the [DynamoDB console](https://console.aws.amazon.com/dyn
 1. Delete the GCP service account secret.
 
     ```bash
-    aws secretsmanager  delete-secret --secret-id ddb2firestore/sa-key
+    aws secretsmanager  delete-secret --secret-id $AWS_SECRET_NAME
     ```
 
 1. Delete the ECR repository. All the container images in the repository will be removed as well.

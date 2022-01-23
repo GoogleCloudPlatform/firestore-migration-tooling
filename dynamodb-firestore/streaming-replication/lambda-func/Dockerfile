@@ -11,5 +11,6 @@ COPY requirements.txt  .
 RUN  pip3 install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
 
 ENV TABLE_NAME=${DYNAMODB_TABLE_NAME}
+ENV AWS_SECRET_NAME=${AWS_SECRET_NAME}
 
 CMD [ "sync-from-stream.lambda_handler" ]

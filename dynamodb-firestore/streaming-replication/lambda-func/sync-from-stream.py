@@ -25,8 +25,7 @@ secrets_client = boto3.client("secretsmanager")
 # Load the GCP credential from AWS secrets manager.
 # You need to create the GCP service account key file first
 # and upload it to AWS secrets manager.
-# TODO: change the secret to an envar and support versions)
-kwargs = {'SecretId': 'ddb2firestore/sa-key'}
+kwargs = {'SecretId': os.environ['AWS_SECRET_ARN']}
 sa_key_val = secrets_client.get_secret_value(**kwargs)
 json_account_info = json.loads(base64.b64decode(sa_key_val['SecretString']))
 sa_credentials = service_account.Credentials.from_service_account_info(
@@ -105,7 +104,7 @@ def convert_items(db_items):
 
 
 def lambda_handler(event, context):
-    table_name = os.environ.get('DYNAMODB_TABLE_NAME')
+    table_name = os.environ['DYNAMODB_TABLE_NAME']
 
     res = local_dynamodb_client.describe_table(TableName=table_name)
     pk, sk = parse_schema(res)
