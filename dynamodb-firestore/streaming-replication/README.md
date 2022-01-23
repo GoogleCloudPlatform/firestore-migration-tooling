@@ -11,7 +11,7 @@ For simplicity, you can run the following steps in Google Cloud Shell.
 ## Configuring AWS access
 
 1. Install AWS CLI in Cloud Shell.
-    ```code=shell
+    ```bash
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     unzip awscliv2.zip
     sudo ./aws/install
@@ -24,12 +24,12 @@ For simplicity, you can run the following steps in Google Cloud Shell.
 
 1.  In Cloud Shell, configure the AWS Command Line Interface (CLI).
 
-    ```code=shell
+    ```bash
     aws configure
     ```
 1.  The following output appears:
 
-    ```code=shell
+    ```
     $aws configure  
     AWS Access Key ID [None]: **PASTE_YOUR_ACCESS_KEY_ID**  
     AWS Secret Access Key [None]: **PASTE_YOUR_SECRET_ACCESS_KEY**  
@@ -43,13 +43,13 @@ For simplicity, you can run the following steps in Google Cloud Shell.
 
 ### Creating an AWS IAM role for AWS Lambda
 
-```code=shell
+```bash
 aws iam create-role --role-name AWSLambdaDynamoDBExecutionRole \
 --assume-role-policy-document \
 '{"Version": "2012-10-17","Statement": [{ "Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}]}'
 ```
 
-```code=shell
+```bash
 aws iam attach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
 --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaInvocation-DynamoDB
 
@@ -67,7 +67,7 @@ aws iam attach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
 You need to build a container image for the Lambda function since certain native libraries are not available in the default Lambda runtimes.
 
 1. Set up the variables.
-    ```code=shell
+    ```bash
     export AWS_REGION=us-east-1
     export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
     export DYNAMODB_TABLE=[Your DynamoDB table name]
@@ -75,35 +75,35 @@ You need to build a container image for the Lambda function since certain native
     export APP_NAME=ddb-firestore-sync-app
     ```
 1. Change to the Lambda source directory.
-    ```code=shell
+    ```bash
     cd lambda-func
     ```
 
 1. Build the docker image for the Lambda function.
-    ```code=shell
+    ```bash
     docker build -t $APP_NAME .
     ```
 
 1. Login to AWS ECR.
-    ```code=shell
+    ```bash
     aws ecr get-login-password --region $AWS_REGION | \
     docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
     ```
 
 1. Tag the image.
-    ```code=shell
+    ```bash
     docker tag ${APP_NAME}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}:latest
     ```
 
 1. Push the image.
-    ```code=shell
+    ```bash
     docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${$APP_NAME}:latest
     ```
 
 ### Granting permissions to the Lambda function for GCP resources.
 
 1. Create a service account on GCP and download the key file. 
-    ```code=shell
+    ```bash
     gcloud iam service-accounts create dynamodb-firestore-sa \
         --description="SA used to copy records from AWS to GCP" \
         --display-name="dynamodb-firestore-sa"
@@ -117,16 +117,16 @@ You need to build a container image for the Lambda function since certain native
     ```
 
 1. Create a secret in AWS secrets manager for the GCP service account key file:
-    ```code=shell
+    ```bash
     aws secretsmanager create-secret --name ddb2firestore/sa-key \
     --description "Access GCP firestore" --secret-string $(base64 gcp-key.json)
     ```
 
 ### Creating the Lambda function
 
-In this step, you deploy the Lambda function with 1GB RAM and 5 minutes timeout. You can change those values based on your use case.
+In this step, you deploy the Lambda function `sync-dbs` with 1GB RAM and 5-minute timeout. You can change those values based on your use case.
 
-```code=shell
+```bash
 aws lambda create-function --region $AWS_REGION --function-name sync-dbs\
     --package-type Image \
     --timeout 300 \
@@ -140,14 +140,14 @@ aws lambda create-function --region $AWS_REGION --function-name sync-dbs\
 
 If streaming is not enabled for the DynamoDB table, you need to enable it.
 
-```code=shell
+```bash
 aws dynamodb update-table --table-name $DYNAMODB_TABLE \
 --stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
 ```
 
 ### Configuring the DynamoDB stream as the event source for the Lambda function:
 
-```code=shell
+```bash
 aws lambda create-event-source-mapping --function-name sync-dbs \
 --batch-size 500 --starting-position LATEST \
 --event-source-arn $(aws dynamodbstreams list-streams \
@@ -157,3 +157,48 @@ aws lambda create-event-source-mapping --function-name sync-dbs \
 ## Testing and verifying
 
 Finally, you can go to the [DynamoDB console](https://console.aws.amazon.com/dynamodbv2/home?r#tables) to make some changes (add/delete/update) and verify the changes are replicated in the [Firestore database](https://console.cloud.google.com/firestore/data).
+
+## Cleaning up
+
+1. Delete the Lambda function.
+
+    ```bash
+    aws lambda delete-function --function-name sync-dbs
+    ```
+
+1. Delete the GCP service account secret.
+
+    ```bash
+    aws secretsmanager  delete-secret --secret-id ddb2firestore/sa-key
+    ```
+
+1. Delete the ECR repository. All the container images in the repository will be removed as well.
+
+    ```bash
+    aws ecr delete-repository --repository-name sync-app --force
+    ```
+
+1. Detach the role policies and delete the IAM role.
+
+    ```bash
+    aws iam detach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
+        --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaInvocation-DynamoDB
+
+    aws iam detach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
+        --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess
+
+    aws iam detach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
+        --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
+    aws iam detach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
+        --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole
+
+    aws iam delete-role --role-name AWSLambdaDynamoDBExecutionRole
+    ```
+
+1. Delete the GCP service account.
+
+    ```bash
+    gcloud iam service-accounts delete \
+        dynamodb-firestore-sa@$GCP_PROJECT_ID.iam.gserviceaccount.com
+    ```
