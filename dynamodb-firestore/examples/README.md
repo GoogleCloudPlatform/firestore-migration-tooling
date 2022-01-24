@@ -157,5 +157,5 @@ If you haven't installed AWS CLI, you can follow [the steps](../copy-data/README
 
     ```bash
     gcloud iam service-accounts delete \
-        dynamodb-firestore-sa@$GCP_PROJECT_ID.iam.gserviceaccount.com
+        ddb-fs-sa-example@$GCP_PROJECT_ID.iam.gserviceaccount.com
     ```
