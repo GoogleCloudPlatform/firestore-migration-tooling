@@ -18,6 +18,8 @@ In this doc, we use [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/home.html
     export GCP_PROJECT_ID=[Your GCP Project ID]
     export APP_NAME=ddb-firestore-sync-app
     export AWS_SECRET_NAME=ddb2firestore/gcp-sa-key
+    # change the src location for firestore native mode to ../lambda-func-firestore
+    export LAMBDA_SRC_LOCATION=../lambda-func-datastore
     ```
 
 1. Create a service account on GCP and download the key file.

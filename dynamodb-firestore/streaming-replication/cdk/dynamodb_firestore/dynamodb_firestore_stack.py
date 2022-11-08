@@ -34,6 +34,8 @@ class DynamodbFirestoreStack(Stack):
         ddb_table_name = os.environ["DYNAMODB_TABLE"]
         # Get the secret ARN for the GCP service account
         aws_secret_arn = os.environ["SECRET_ARN"]
+        # Get the lambda src path
+        lambda_src_loc = os.environ["LAMBDA_SRC_LOCATION"]
 
         # Use boto3 to get the table stream
         dynamodb = boto3.resource('dynamodb')
@@ -53,7 +55,7 @@ class DynamodbFirestoreStack(Stack):
             function_name="ddb-firestore-sync-func",
             memory_size=1024,
             timeout=Duration.seconds(300),
-            code=aws_lambda.DockerImageCode.from_image_asset("../lambda-func-firestore"))
+            code=aws_lambda.DockerImageCode.from_image_asset(lambda_src_loc))
         sync_lambda.add_environment("DYNAMODB_TABLE_NAME", ddb_table_name)
         sync_lambda.add_environment("AWS_SECRET_ARN", aws_secret_arn)
 
