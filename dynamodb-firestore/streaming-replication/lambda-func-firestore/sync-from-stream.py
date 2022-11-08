@@ -17,37 +17,51 @@ import base64
 
 from google.oauth2 import service_account
 from google.cloud import firestore
+from boto3.dynamodb.types import TypeDeserializer
+from decimal import Decimal
+
 
 # Initialize clents for AWS
-local_dynamodb_client = boto3.client('dynamodb')
+local_dynamodb_client = boto3.client("dynamodb")
 secrets_client = boto3.client("secretsmanager")
 
 # Load the GCP credential from AWS secrets manager.
 # You need to create the GCP service account key file first
 # and upload it to AWS secrets manager.
-kwargs = {'SecretId': os.environ['AWS_SECRET_ARN']}
+kwargs = {"SecretId": os.environ["AWS_SECRET_ARN"]}
 sa_key_val = secrets_client.get_secret_value(**kwargs)
-json_account_info = json.loads(base64.b64decode(sa_key_val['SecretString']))
+json_account_info = json.loads(base64.b64decode(sa_key_val["SecretString"]))
 sa_credentials = service_account.Credentials.from_service_account_info(
-    json_account_info)
+    json_account_info
+)
 
-# Initialize clint for Firestoer
+# Initialize clint for Firestore
 firestore_client = firestore.Client(credentials=sa_credentials)
+
+
+def dumps(item: dict) -> str:
+    return json.dumps(item, default=default_type_error_handler)
+
+
+def default_type_error_handler(obj):
+    if isinstance(obj, Decimal):
+        return int(obj)
+    raise TypeError
 
 
 def parse_schema(schema_dict):
     pk = None
     sk = None
 
-    table_dict = schema_dict['Table']
-    key_schema = table_dict['KeySchema']
+    table_dict = schema_dict["Table"]
+    key_schema = table_dict["KeySchema"]
     for key in key_schema:
-        key_name = key['AttributeName']
-        key_type = key['KeyType']
-        if key_type == 'HASH':
+        key_name = key["AttributeName"]
+        key_type = key["KeyType"]
+        if key_type == "HASH":
             pk = key_name
             # print('pk: ' + pk)
-        if key_type == 'RANGE':
+        if key_type == "RANGE":
             sk = key_name
             # print('sk: ' + sk)
     return pk, sk
@@ -77,34 +91,22 @@ def write_batch(fs_docs, table, pk, sk, is_delete=False):
 
     batch.commit()
 
+def ddb_deserialize(r, type_deserializer=TypeDeserializer()):
+    return type_deserializer.deserialize({"M": r})
+
 
 def convert_items(db_items):
     fs_docs = []
-    for item_dict in db_items:
-        fs_doc = {}
-        keys = item_dict.keys()
-        for attr_name in keys:
-            attr_dict = item_dict[attr_name]
-            attr_val = ''
-            if 'S' in attr_dict:
-                attr_val = attr_dict['S']
-                # print('attr_val (STRING): ' + attr_val)
-            if 'N' in attr_dict:
-                attr_val = attr_dict['N']
-                # print('attr_val (NUMBER): ' + attr_val)
-                if '.' in attr_val:
-                    attr_val = float(attr_val)
-                else:
-                    attr_val = int(attr_val)
-            if attr_val != '':
-                fs_doc[attr_name] = attr_val
-        # print('fs_doc: ' + str(fs_doc))
+
+    for item in db_items:
+        item_as_json = dumps(ddb_deserialize(item))
+        fs_doc = json.loads(item_as_json)
         fs_docs.append(fs_doc)
     return fs_docs
 
 
 def lambda_handler(event, context):
-    table_name = os.environ['DYNAMODB_TABLE_NAME']
+    table_name = os.environ["DYNAMODB_TABLE_NAME"]
 
     res = local_dynamodb_client.describe_table(TableName=table_name)
     pk, sk = parse_schema(res)
@@ -112,17 +114,17 @@ def lambda_handler(event, context):
     ddb_add_records = []
     ddb_del_records = []
 
-    for rec in event['Records']:
-        if rec['eventName'] in ['INSERT', 'MODIFY']:
-            add_rec = rec['dynamodb']['NewImage']
-            add_rec[pk] = rec['dynamodb']['Keys'][pk]
-            add_rec[sk] = rec['dynamodb']['Keys'][sk]
+    for rec in event["Records"]:
+        if rec["eventName"] in ["INSERT", "MODIFY"]:
+            add_rec = rec["dynamodb"]["NewImage"]
+            add_rec[pk] = rec["dynamodb"]["Keys"][pk]
+            add_rec[sk] = rec["dynamodb"]["Keys"][sk]
             ddb_add_records.append(add_rec)
 
-        elif rec['eventName'] == 'REMOVE':
-            del_rec = rec['dynamodb']['OldImage']
-            del_rec[pk] = rec['dynamodb']['Keys'][pk]
-            del_rec[sk] = rec['dynamodb']['Keys'][sk]
+        elif rec["eventName"] == "REMOVE":
+            del_rec = rec["dynamodb"]["OldImage"]
+            del_rec[pk] = rec["dynamodb"]["Keys"][pk]
+            del_rec[sk] = rec["dynamodb"]["Keys"][sk]
             ddb_del_records.append(del_rec)
 
     fs_add_docs = convert_items(ddb_add_records)

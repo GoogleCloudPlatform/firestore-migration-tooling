@@ -51,13 +51,17 @@ aws iam create-role --role-name AWSLambdaDynamoDBExecutionRole \
 
 ```bash
 aws iam attach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
---policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaInvocation-DynamoDB
+--policy-arn arn:aws:iam::aws:policy/AWSLambdaInvocation-DynamoDB
+
+aws iam attach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
+--policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole
 
 aws iam attach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
 --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess
 
 aws iam attach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
 --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
 ```
 
 ## Building and Deploying the AWS Lambda Function
@@ -76,8 +80,14 @@ You need to build a container image for the Lambda function since certain native
     export AWS_SECRET_NAME=ddb2firestore/gcp-sa-key
     ```
 1. Change to the Lambda source directory.
+* If you have chosen the native mode, run:
+
     ```bash
-    cd lambda-func
+    cd lambda-func-firestore
+    ```
+* If you have chose the datastore mode, run:
+    ```bash
+    cd lambda-func-datastore
     ```
 
 1. Build the docker image for the Lambda function.
@@ -95,10 +105,13 @@ You need to build a container image for the Lambda function since certain native
     ```bash
     docker tag ${APP_NAME}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}:latest
     ```
-
+1. Create the repository.
+    ```bash
+    aws ecr create-repository --repository-name $APP_NAME
+    ```
 1. Push the image.
     ```bash
-    docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${$APP_NAME}:latest
+    docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}:latest
     ```
 
 ### Granting permissions to the Lambda function for GCP resources.
@@ -111,7 +124,7 @@ You need to build a container image for the Lambda function since certain native
 
     gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
     --member="serviceAccount:dynamodb-firestore-sa@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
-        --role="roles/datastore.user"
+        --role="roles/datastore.owner"
 
     gcloud iam service-accounts keys create gcp-key.json \
         --iam-account=dynamodb-firestore-sa@$GCP_PROJECT_ID.iam.gserviceaccount.com
@@ -120,9 +133,13 @@ You need to build a container image for the Lambda function since certain native
 1. Create a secret in AWS secrets manager for the GCP service account key file:
     ```bash
     aws secretsmanager create-secret --name $AWS_SECRET_NAME \
-    --description "Access GCP firestore" --secret-string $(base64 gcp-key.json)
+    --description "Access GCP firestore" --secret-string "$(base64 gcp-key.json)"
     ```
 
+1. Copy the `ARN` value from the output to the vairable:
+    ```bash
+    export SECRET_ARN=$(aws secretsmanager describe-secret --secret-id $AWS_SECRET_NAME --query 'ARN' | tr -d '"')
+    ```f
 ### Creating the Lambda function
 
 In this step, you deploy the Lambda function `sync-dbs` with 1GB RAM and 5-minute timeout. You can change those values based on your use case.
@@ -132,9 +149,9 @@ aws lambda create-function --region $AWS_REGION --function-name sync-dbs\
     --package-type Image \
     --timeout 300 \
     --memory-size 1024 \
-    --code ImageUri=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${$APP_NAME}:latest \
+    --code ImageUri=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}:latest \
     --role arn:aws:iam::${AWS_ACCOUNT_ID}:role/AWSLambdaDynamoDBExecutionRole \
-    --environment "Variables={DYNAMODB_TABLE_NAME=$DYNAMODB_TABLE}"
+    --environment "Variables={DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE},AWS_SECRET_ARN=${SECRET_ARN}}"
 ```
 
 ### Enabling DynamoDB stream
@@ -183,7 +200,10 @@ Finally, you can go to the [DynamoDB console](https://console.aws.amazon.com/dyn
 
     ```bash
     aws iam detach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
-        --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaInvocation-DynamoDB
+        --policy-arn arn:aws:iam::aws:policy/AWSLambdaInvocation-DynamoDB
+
+    aws iam detach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
+        --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess
 
     aws iam detach-role-policy --role-name AWSLambdaDynamoDBExecutionRole \
         --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess

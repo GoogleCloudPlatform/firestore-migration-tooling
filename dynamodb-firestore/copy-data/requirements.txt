@@ -1,3 +1,6 @@
 google-cloud-firestore
+google-cloud-datastore
 google-cloud-storage
 boto3
+smart-open
+more-itertools

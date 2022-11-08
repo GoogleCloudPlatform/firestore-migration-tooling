@@ -53,7 +53,7 @@ class DynamodbFirestoreStack(Stack):
             function_name="ddb-firestore-sync-func",
             memory_size=1024,
             timeout=Duration.seconds(300),
-            code=aws_lambda.DockerImageCode.from_image_asset("../lambda-func"))
+            code=aws_lambda.DockerImageCode.from_image_asset("../lambda-func-firestore"))
         sync_lambda.add_environment("DYNAMODB_TABLE_NAME", ddb_table_name)
         sync_lambda.add_environment("AWS_SECRET_ARN", aws_secret_arn)
 

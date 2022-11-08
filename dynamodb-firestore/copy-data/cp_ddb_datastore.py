@@ -14,15 +14,14 @@ import sys
 import json
 import boto3
 
-from google.cloud import firestore
+from google.cloud import datastore
 from boto3.dynamodb.types import TypeDeserializer
 from decimal import Decimal
 
-
 ddb_client = boto3.client("dynamodb")
-firestore_client = firestore.Client()
+datastore_client = datastore.Client()
 # Maximum number of writes that can be passed
-# to a Commit operation in Firestore is 500
+# to a Commit operation in Datastore is 500
 limit = 500
 
 
@@ -37,11 +36,6 @@ def default_type_error_handler(obj):
 
 
 def copy_table(table_name):
-    global ddb_client, firestore_client
-    if not ddb_client:
-        ddb_client = boto3.client("dynamodb")
-    if not firestore_client:
-        firestore_client = firestore.Client()
 
     res = ddb_client.describe_table(TableName=table_name)
     pk, sk = parse_schema(res)
@@ -55,7 +49,7 @@ def copy_table(table_name):
     read_cnt = 0
     write_cnt = 0
 
-    print(f"DDB PK -> Firestore ID")
+    print(f"DDB PK -> Datastore ID")
     while not done:
         if start_key:
             scan_kwargs["ExclusiveStartKey"] = start_key
@@ -70,7 +64,7 @@ def copy_table(table_name):
         done = start_key is None
 
     print(f"Total items read from DynamoDB: {read_cnt}")
-    print(f"Total items written to Firestore: {write_cnt}")
+    print(f"Total items written to Datastore: {write_cnt}")
 
 
 def parse_schema(schema_dict):
@@ -94,7 +88,8 @@ def parse_schema(schema_dict):
 
 def write_batch(fs_docs, table, pk, sk):
 
-    batch = firestore_client.batch()
+    batch = datastore_client.batch()
+    batch.begin()
 
     for doc in fs_docs:
         pk_val = doc[pk]
@@ -108,8 +103,9 @@ def write_batch(fs_docs, table, pk, sk):
 
         print(f"{pk_val} -> {doc_id_md5}")
 
-        doc_ref = firestore_client.collection(table).document(doc_id_md5)
-        batch.set(doc_ref, doc)
+        entity = datastore.Entity(datastore_client.key(table, doc_id_md5))
+        entity.update(doc)
+        batch.put(entity)
 
     batch.commit()
 

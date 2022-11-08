@@ -44,7 +44,7 @@ If you haven't enabled the Firestore API and set it up, you can use the followin
 
 1. Go to the [Firestore console](https://console.cloud.google.com/firestore/data)
 
-1. From the `Select a database service` screen, choose Firestore in Native mode.
+1. From the `Select a database service` screen, choose Firestore in Native mode or Firestore in Datastore mode depending on your requirements.
 
 1. Select a [location](https://cloud.google.com/firestore/docs/locations#types) for your Firestore.
 
@@ -82,8 +82,30 @@ If you haven't enabled the Firestore API and set it up, you can use the followin
 ## Copying and viewing the data
 
 1. Run the script to copy the data.
+
+* If you want to copy the data driectly from a DynamoDB to Firestore in native mode, run the following:
     ```
     python ./cp_ddb_firestore.py  [your-dynamodb-table-name]
     ```
+* If you want to copy the data driectly from a DynamoDB to Firestore in datastore mode, run the following:
+    ```
+    python ./cp_ddb_datastore.py  [your-dynamodb-table-name]
+    ```
+* If you have exported the data to an S3 bucket, run the following command for the native mode:
+    ```
+    python ./cp_export_firestore.py [table name] [s3 URI]
+    ```
+    For example:
+    ```
+    python ./cp_export_firestore.py Customer_Order s3://export-bucket/AWSDynamoDB/01667837262018-1223ed5d/
+    ```
+* If you have exported the data to an S3 bucket, run the following command for the datastore mode:
+    ```
+    python ./cp_export_datastore.py [table name] [s3 URI]
+    ```
+    For example:
+    ```
+    python ./cp_export_datastore.py Customer_Order s3://export-bucket/AWSDynamoDB/01667837262018-1223ed5d/
+    ```
 
-1. View the Firestore data in the [Firestore Console](https://console.cloud.google.com/firestore/data)
+1. View the data in the [Firestore Console](https://console.cloud.google.com/firestore/data)

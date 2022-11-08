@@ -13,17 +13,11 @@ import hashlib
 import sys
 import json
 import boto3
-
+from smart_open import open
+from more_itertools import chunked
 from google.cloud import firestore
 from boto3.dynamodb.types import TypeDeserializer
 from decimal import Decimal
-
-
-ddb_client = boto3.client("dynamodb")
-firestore_client = firestore.Client()
-# Maximum number of writes that can be passed
-# to a Commit operation in Firestore is 500
-limit = 500
 
 
 def dumps(item: dict) -> str:
@@ -36,38 +30,40 @@ def default_type_error_handler(obj):
     raise TypeError
 
 
-def copy_table(table_name):
-    global ddb_client, firestore_client
-    if not ddb_client:
-        ddb_client = boto3.client("dynamodb")
-    if not firestore_client:
-        firestore_client = firestore.Client()
+ddb_client = boto3.client("dynamodb")
+s3 = boto3.client("s3")
+firestore_client = firestore.Client()
+# Maximum number of writes that can be passed
+# to a Commit operation in Firestore is 500
+limit = 500
+
+
+def read_manifest(s3_uri):
+    data_files = []
+    for line in open(f"{s3_uri}/manifest-files.json"):
+        item = json.loads(line)
+        data_files.append(item["dataFileS3Key"])
+    return data_files
+
+
+def copy_table(table_name, s3_uri):
+    data_files = read_manifest(s3_uri)
+    bucket_name, _ = s3_uri.replace("s3://", "").split("/", 1)
 
     res = ddb_client.describe_table(TableName=table_name)
     pk, sk = parse_schema(res)
-
-    scan_kwargs = {
-        "Limit": limit,
-        "TableName": table_name,
-    }
-    done = False
-    start_key = None
     read_cnt = 0
     write_cnt = 0
+    tp = {"client": boto3.client("s3")}
 
     print(f"DDB PK -> Firestore ID")
-    while not done:
-        if start_key:
-            scan_kwargs["ExclusiveStartKey"] = start_key
-
-        response = ddb_client.scan(**scan_kwargs)
-        ddb_items = response.get("Items", [])
-        read_cnt += response.get("Count", 0)
-        fs_docs = convert_items(ddb_items)
-        write_batch(fs_docs, table_name, pk, sk)
-        write_cnt += len(fs_docs)
-        start_key = response.get("LastEvaluatedKey", None)
-        done = start_key is None
+    for data_file in data_files:
+        with open(f"s3://{bucket_name}/{data_file}", transport_params=tp) as fin:
+            for ddb_items in chunked(fin, limit):
+                read_cnt += len(ddb_items)
+                fs_docs = convert_items(ddb_items)
+                write_batch(fs_docs, table_name, pk, sk)
+                write_cnt += len(fs_docs)
 
     print(f"Total items read from DynamoDB: {read_cnt}")
     print(f"Total items written to Firestore: {write_cnt}")
@@ -121,7 +117,8 @@ def ddb_deserialize(r, type_deserializer=TypeDeserializer()):
 def convert_items(db_items):
     fs_docs = []
 
-    for item_dict in db_items:
+    for item in db_items:
+        item_dict = json.loads(item)["Item"]
         item_as_json = dumps(ddb_deserialize(item_dict))
         fs_doc = json.loads(item_as_json)
         fs_docs.append(fs_doc)
@@ -129,8 +126,13 @@ def convert_items(db_items):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit("Please provide a DynamoDB table name.")
+    if len(sys.argv) < 3:
+        print(
+            "Please provide the table name and S3 URI. For example:\n",
+            f"python {sys.argv[0]} table_name s3://xxxxx/AWSDynamoDB/01667837262018-1223ed5d/",
+        )
+        sys.exit(1)
 
-    table_name = sys.argv[1]
-    copy_table(table_name)
+    table_name, s3_path = sys.argv[1:3]
+    s3_uri = s3_path.rstrip("/")
+    copy_table(table_name, s3_uri)

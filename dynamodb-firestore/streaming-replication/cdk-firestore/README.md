@@ -29,7 +29,7 @@ In this doc, we use [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/home.html
 
     gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
     --member="serviceAccount:dynamodb-firestore-sa@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
-        --role="roles/datastore.user"
+        --role="roles/datastore.owner"
 
     gcloud iam service-accounts keys create gcp-key.json \
         --iam-account=dynamodb-firestore-sa@$GCP_PROJECT_ID.iam.gserviceaccount.com
