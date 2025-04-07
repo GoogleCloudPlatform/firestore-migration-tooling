@@ -15,38 +15,35 @@ import json
 import boto3
 import time
 from datetime import datetime
+from decimal import Decimal
 
 from google.cloud import firestore
 from google.oauth2 import service_account
 from boto3.dynamodb.types import TypeDeserializer
-from decimal import Decimal
 
-
+# Initialize DynamoDB client
 ddb_client = boto3.client("dynamodb")
 
 # Initialize Firestore client with service account
-credentials = service_account.Credentials.from_service_account_file(
-    'file.json'
-)
+credentials = service_account.Credentials.from_service_account_file('')
 firestore_client = firestore.Client(
-    project='proyect',
-    database='db',
+    project='',
+    database='',
     credentials=credentials
 )
-# Maximum number of writes that can be passed
-# to a Commit operation in Firestore is 500
+# Maximum number of writes that can be passed to a Commit operation in Firestore is 500
 limit = 500
-
 
 def dumps(item: dict) -> str:
     return json.dumps(item, default=default_type_error_handler)
 
-
 def default_type_error_handler(obj):
     if isinstance(obj, Decimal):
-        return int(obj)
-    raise TypeError
-
+        if obj == obj.to_integral_value():
+            return int(obj)
+        else:
+            return float(obj)
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 def copy_table(table_name):
     global ddb_client, firestore_client
@@ -82,7 +79,6 @@ def copy_table(table_name):
     print(f"Total items read from DynamoDB: {read_cnt}")
     print(f"Total items written to Firestore: {write_cnt}")
 
-
 def parse_schema(schema_dict):
     pk = None
     sk = None
@@ -101,16 +97,14 @@ def parse_schema(schema_dict):
 
     return pk, sk
 
-
 def write_batch(fs_docs, table, pk, sk):
-
     batch = firestore_client.batch()
 
     for doc in fs_docs:
         pk_val = doc[pk]
-
+        sk_val = None
         if sk is not None:
-            sk_val = doc[sk]
+            sk_val = doc.get(sk)
 
         doc_id_val = pk_val if sk_val is None else pk_val + sk_val
         doc_id_hash = hashlib.md5(doc_id_val.encode())
@@ -123,20 +117,16 @@ def write_batch(fs_docs, table, pk, sk):
 
     batch.commit()
 
-
 def ddb_deserialize(r, type_deserializer=TypeDeserializer()):
     return type_deserializer.deserialize({"M": r})
 
-
 def convert_items(db_items):
     fs_docs = []
-
     for item_dict in db_items:
         item_as_json = dumps(ddb_deserialize(item_dict))
         fs_doc = json.loads(item_as_json)
         fs_docs.append(fs_doc)
     return fs_docs
-
 
 def list_all_tables():
     """List all tables in DynamoDB and return their names"""
