@@ -13,14 +13,26 @@ import hashlib
 import sys
 import json
 import boto3
+import time
+from datetime import datetime
 
 from google.cloud import firestore
+from google.oauth2 import service_account
 from boto3.dynamodb.types import TypeDeserializer
 from decimal import Decimal
 
 
 ddb_client = boto3.client("dynamodb")
-firestore_client = firestore.Client()
+
+# Initialize Firestore client with service account
+credentials = service_account.Credentials.from_service_account_file(
+    'file.json'
+)
+firestore_client = firestore.Client(
+    project='proyect',
+    database='db',
+    credentials=credentials
+)
 # Maximum number of writes that can be passed
 # to a Commit operation in Firestore is 500
 limit = 500
@@ -40,9 +52,7 @@ def copy_table(table_name):
     global ddb_client, firestore_client
     if not ddb_client:
         ddb_client = boto3.client("dynamodb")
-    if not firestore_client:
-        firestore_client = firestore.Client()
-
+        
     res = ddb_client.describe_table(TableName=table_name)
     pk, sk = parse_schema(res)
 
@@ -128,9 +138,52 @@ def convert_items(db_items):
     return fs_docs
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit("Please provide a DynamoDB table name.")
+def list_all_tables():
+    """List all tables in DynamoDB and return their names"""
+    tables = []
+    last_evaluated_table_name = None
+    
+    while True:
+        if last_evaluated_table_name:
+            response = ddb_client.list_tables(ExclusiveStartTableName=last_evaluated_table_name)
+        else:
+            response = ddb_client.list_tables()
+            
+        tables.extend(response.get('TableNames', []))
+        
+        last_evaluated_table_name = response.get('LastEvaluatedTableName')
+        if not last_evaluated_table_name:
+            break
+    
+    return tables
 
-    table_name = sys.argv[1]
-    copy_table(table_name)
+def migrate_all_tables():
+    """Migrate all tables from DynamoDB to Firestore"""
+    tables = list_all_tables()
+    print(f"Found {len(tables)} tables to migrate")
+    total_start_time = time.time()
+    
+    for table in tables:
+        print(f"\nStarting migration of table: {table} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        table_start_time = time.time()
+        try:
+            copy_table(table)
+            table_end_time = time.time()
+            duration = table_end_time - table_start_time
+            print(f"Successfully migrated table: {table}")
+            print(f"Time taken: {duration:.2f} seconds")
+        except Exception as e:
+            print(f"Error migrating table {table}: {str(e)}")
+    
+    total_end_time = time.time()
+    total_duration = total_end_time - total_start_time
+    print(f"\nTotal migration time: {total_duration:.2f} seconds")
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        # If table name is provided, migrate specific table
+        table_name = sys.argv[1]
+        copy_table(table_name)
+    else:
+        # If no table name provided, migrate all tables
+        migrate_all_tables()
